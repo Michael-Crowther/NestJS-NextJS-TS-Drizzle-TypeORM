@@ -9,6 +9,8 @@ pnpm install
 pnpm dev
 ```
 
+Will need to setup the DB connection, create the todo_app DB, run migrations.
+
 ## Adding components
 
 To add components to your app, run the following command at the root of your `web` app:
