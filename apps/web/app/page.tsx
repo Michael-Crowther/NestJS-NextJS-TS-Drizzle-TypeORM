@@ -21,7 +21,7 @@ export async function createTodo(formData: FormData) {
 }
 
 export async function getTodos(sortBy: string, order: string): Promise<Todo[]> {
-  const res = await fetch(`${api_url}/todos`, {
+  const res = await fetch(`${api_url}/todos?sortBy=${sortBy}&order=${order}`, {
     cache: "no-store",
   });
 
@@ -43,7 +43,28 @@ export async function completeTodo(id: string) {
   revalidatePath("/");
 }
 
-export default async function Home() {
-  const todos = await getTodos("createdAt", "asc");
-  return <TodosClient todos={todos} />;
+export async function deleteTodo(id: string) {
+  if (!id) throw new Error("ID is required to delete Todo");
+
+  const res = await fetch(`${api_url}/todos`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+
+  if (!res.ok) throw new Error("Something went wrong deleting todo item");
+
+  revalidatePath("/");
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ sortBy?: string; order?: string }>;
+}) {
+  const params = await searchParams;
+  const sortBy = params.sortBy ?? "createdAt";
+  const order = params.order ?? "asc";
+  const todos = await getTodos(sortBy, order);
+  return <TodosClient todos={todos} sortBy={sortBy} order={order} />;
 }
