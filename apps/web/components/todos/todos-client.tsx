@@ -1,6 +1,4 @@
 "use client";
-import { completeTodo, createTodo, deleteTodo, getTodos } from "@/app/page";
-import { useState } from "react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import {
@@ -12,11 +10,11 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
-import { Checkbox } from "@workspace/ui/components/checkbox";
-import { Todo } from "@/types/todo";
+import { Todo } from "@/types";
 import moment from "moment";
-import { ArrowDown, ArrowUp, Delete, Trash } from "lucide-react";
+import { ArrowDown, ArrowUp, Trash } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { completeTodo, createTodo, deleteTodo } from "@/app/actions/todos";
 
 type TodosClientProps = {
   todos: Todo[];
@@ -35,8 +33,8 @@ export default function TodosClient({
   const searchParams = useSearchParams();
 
   function updateSort(nextSortBy: SortByOptions) {
-    const currentSort = searchParams.get("sortBy") ?? "createdAt";
-    const currentOrder = searchParams.get("order") ?? "asc";
+    const currentSort = searchParams.get("todoSortBy") ?? "createdAt";
+    const currentOrder = searchParams.get("todoOrder") ?? "asc";
 
     let nextOrder: "asc" | "desc" = "asc";
     if (currentSort === nextSortBy) {
@@ -44,15 +42,15 @@ export default function TodosClient({
     }
 
     const params = new URLSearchParams(searchParams.toString());
-    params.set("sortBy", nextSortBy);
-    params.set("order", nextOrder);
+    params.set("todoSortBy", nextSortBy);
+    params.set("todoOrder", nextOrder);
 
     // reload home page with new params to recieve
     router.replace(`/?${params.toString()}`);
   }
 
   return (
-    <div className="mx-80 my-40 h-150 flex flex-col gap-2 items-center">
+    <div className="flex flex-col gap-2 items-center">
       <form action={createTodo} className="flex gap-2 w-full">
         <Input
           placeholder="What do you need to do?"
