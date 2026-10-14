@@ -243,7 +243,10 @@ export default function BooksClient({
               <TableRow key={book.id} className="p-2 h-10 rounded-md mb-3">
                 <TableCell className="max-w-20">{book.title}</TableCell>
                 <TableCell>{book.author}</TableCell>
-                <TableCell>{book.status}</TableCell>
+                <TableCell>
+                  {bookStatusOptions.find((o) => o.value === book.status)
+                    ?.label ?? book.status}
+                </TableCell>
                 <TableCell>{book.rating}</TableCell>
                 <TableCell>{book.genre?.name}</TableCell>
                 <TableCell>
