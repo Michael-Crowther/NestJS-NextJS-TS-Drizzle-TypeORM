@@ -8,7 +8,6 @@ const api_url = process.env.API_URL ?? "http://localhost:8085";
 
 const bookSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  author: z.string().min(1, "Author is required"),
   status: z.enum(["to_read", "reading", "finished"], {
     message: "Invalid status",
   }),
@@ -17,6 +16,10 @@ const bookSchema = z.object({
     z.coerce.number().min(1).max(5).optional(),
   ),
   genreId: z.preprocess((v) => (v === "" ? undefined : v), z.uuid().optional()),
+  authorId: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.uuid().optional(),
+  ),
 });
 
 export async function createBook(formData: FormData) {
@@ -47,8 +50,14 @@ export async function createBook(formData: FormData) {
 export async function getBooks(
   sortBy?: string,
   order?: string,
+  search?: string,
 ): Promise<Book[]> {
-  const res = await fetch(`${api_url}/books?sortBy=${sortBy}&order=${order}`);
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+
+  const res = await fetch(`${api_url}/books?${params}`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     throw new Error("Failed to fetch books");

@@ -22,6 +22,8 @@ export default async function Home({
     todoOrder?: string;
     bookSortBy?: string;
     bookOrder?: string;
+    search?: string;
+    authorSearch?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -39,7 +41,12 @@ export default async function Home({
       </Suspense>
 
       <Suspense fallback={<p>Loading books...</p>}>
-        <BookSection sortBy={bookSortBy} order={bookOrder} />
+        <BookSection
+          sortBy={bookSortBy}
+          order={bookOrder}
+          search={params.search}
+          authorSearch={params.authorSearch}
+        />
       </Suspense>
     </main>
   );
