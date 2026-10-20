@@ -31,10 +31,13 @@ export async function createAuthor(formData: FormData) {
 }
 
 export async function getAuthors(authorSearch?: string) {
-  const params = await new URLSearchParams();
-  if (authorSearch) params.set("search", authorSearch);
+  const params = new URLSearchParams();
+  // API QueryAuthorDto expects `authorSearch`, not `search`
+  if (authorSearch) params.set("authorSearch", authorSearch);
 
-  const res = await fetch(`${api_url}/authors?${params}`);
+  const res = await fetch(`${api_url}/authors?${params}`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     throw new Error("Could not fetch authors");

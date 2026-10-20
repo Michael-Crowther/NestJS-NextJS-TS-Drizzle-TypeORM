@@ -1,60 +1,33 @@
 "use server";
-import { Todo } from "@/types";
+
 import { revalidatePath } from "next/cache";
+import * as todosApi from "@/lib/api/todos";
+import type { TodoListParams } from "@/lib/api/todos";
 
-const api_url = process.env.API_URL ?? "http://localhost:8085";
-
+/**
+ * Optional Next server-action wrappers over the same lib/api client.
+ * React Query hooks call lib/api directly from the browser instead.
+ */
 export async function createTodo(formData: FormData) {
   const title = formData.get("title");
-  if (!title) return;
+  if (!title || typeof title !== "string") return;
 
-  const res = await fetch(`${api_url}/todos`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
-  });
-
-  if (!res.ok) throw new Error("Failed to create todo item");
-
+  await todosApi.createTodo({ title });
   revalidatePath("/");
 }
 
-export async function getTodos(
-  sortBy?: string,
-  order?: string,
-): Promise<Todo[]> {
-  const res = await fetch(`${api_url}/todos?sortBy=${sortBy}&order=${order}`, {
-    cache: "no-store",
-  });
-
-  if (!res.ok) throw new Error("Failed to get Todo list");
-  return res.json();
+export async function getTodos(params: TodoListParams = {}) {
+  return todosApi.fetchTodos(params);
 }
 
 export async function completeTodo(id: string) {
   if (!id) throw new Error("Todo id is required");
-
-  const res = await fetch(`${api_url}/todos`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
-  });
-
-  if (!res.ok) throw new Error("Something went wrong completing Todo item");
-
+  await todosApi.completeTodo(id);
   revalidatePath("/");
 }
 
 export async function deleteTodo(id: string) {
   if (!id) throw new Error("ID is required to delete Todo");
-
-  const res = await fetch(`${api_url}/todos`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
-  });
-
-  if (!res.ok) throw new Error("Something went wrong deleting todo item");
-
+  await todosApi.deleteTodo(id);
   revalidatePath("/");
 }

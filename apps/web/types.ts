@@ -7,6 +7,11 @@ export type Todo = {
   updatedAt: Date;
 };
 
+export type Tag = {
+  id: string;
+  name: string;
+};
+
 export type Book = {
   id: string;
   title: string;
@@ -16,9 +21,16 @@ export type Book = {
   rating: number | null;
   genreId: string | null;
   genre: Genre | null;
+  tags?: Tag[];
+  tagIds?: string[] | null;
   finishedAt: string | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type BooksPage = {
+  books: Book[];
+  totalCount: number;
 };
 
 export type Genre = {

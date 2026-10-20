@@ -1,6 +1,6 @@
 "use server";
 
-import { Book } from "@/types";
+import { Book, BooksPage } from "@/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -20,24 +20,31 @@ const bookSchema = z.object({
     (v) => (v === "" ? undefined : v),
     z.uuid().optional(),
   ),
+  tagIds: z.array(z.uuid()).optional().default([]),
 });
 
+function parseBookForm(formData: FormData) {
+  const entries = Object.fromEntries(formData.entries());
+  return bookSchema.safeParse({
+    ...entries,
+    tagIds: formData.getAll("tagIds").filter(Boolean),
+  });
+}
+
 export async function createBook(formData: FormData) {
-  const parsed = bookSchema.safeParse(Object.fromEntries(formData.entries()));
+  const parsed = parseBookForm(formData);
 
   if (!parsed.success) {
     throw new Error(parsed.error.message);
   }
 
-  // console.log("parsed", parsed.data);
+  console.log(parsed);
 
   const res = await fetch(`${api_url}/books`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(parsed.data),
   });
-
-  // console.log("res", res);
 
   if (!res.ok) {
     throw new Error("Failed to create book");
@@ -46,14 +53,19 @@ export async function createBook(formData: FormData) {
   revalidatePath("/");
 }
 
-// get all books
 export async function getBooks(
   sortBy?: string,
   order?: string,
   search?: string,
-): Promise<Book[]> {
+  limit?: string,
+  offset?: string,
+): Promise<BooksPage> {
   const params = new URLSearchParams();
   if (search) params.set("search", search);
+  if (sortBy) params.set("sortBy", sortBy);
+  if (order) params.set("order", order);
+  if (limit) params.set("limit", limit);
+  if (offset) params.set("offset", offset);
 
   const res = await fetch(`${api_url}/books?${params}`, {
     cache: "no-store",
@@ -66,7 +78,6 @@ export async function getBooks(
   return res.json();
 }
 
-// get book by id
 export async function getBookById(id: string): Promise<Book> {
   const res = await fetch(`${api_url}/books/${id}`);
 
@@ -77,9 +88,8 @@ export async function getBookById(id: string): Promise<Book> {
   return res.json();
 }
 
-// update book
 export async function updateBook(id: string, formData: FormData) {
-  const parsed = bookSchema.safeParse(Object.fromEntries(formData.entries()));
+  const parsed = parseBookForm(formData);
 
   if (!parsed.success) {
     throw new Error(parsed.error.message);
@@ -98,7 +108,6 @@ export async function updateBook(id: string, formData: FormData) {
   revalidatePath("/");
 }
 
-// delete book
 export async function deleteBook(id: string) {
   if (!id) throw new Error("id is required to delete book");
 

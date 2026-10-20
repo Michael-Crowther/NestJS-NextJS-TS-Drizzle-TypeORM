@@ -1,5 +1,5 @@
 "use client";
-import { Author, Book } from "@/types";
+import { Author, Book, BooksPage, Tag } from "@/types";
 import { Genre } from "@/types";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
@@ -36,19 +36,23 @@ import { Label } from "@workspace/ui/components/label";
 import React, { useEffect, useState } from "react";
 import { createGenre } from "@/app/actions/genres";
 import { createAuthor } from "@/app/actions/authors";
+import { createTag } from "@/app/actions/tags";
 import { createBook, deleteBook, updateBook } from "@/app/actions/books";
-import { Pencil, Trash } from "lucide-react";
+import { ArrowLeft, ArrowRight, Pencil, Trash } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useDebounceCallback } from "usehooks-ts";
+import { TagsMultiCombobox } from "./tags-multi-combobox";
 
 type BookClientProps = {
-  books: Book[];
+  bookPage: BooksPage;
   genres: Genre[];
   authors: Author[];
-  sortBy?: string;
-  order?: string;
+  tags: Tag[];
 };
+
+type SortByOptions = "createdAt" | "title" | "author";
+type OrderOptions = "asc" | "desc";
 
 const bookStatusOptions = [
   { value: "to_read", label: "To Read" },
@@ -59,11 +63,10 @@ const bookStatusOptions = [
 type DialogModes = "create" | "edit";
 
 export default function BooksClient({
-  books,
+  bookPage,
   genres,
   authors,
-  sortBy,
-  order,
+  tags,
 }: BookClientProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -71,15 +74,25 @@ export default function BooksClient({
   const [genreDialogOpen, setGenreDialogOpen] = useState(false);
   const [bookDialogOpen, setBookDialogOpen] = useState(false);
   const [authorDialogOpen, setAuthorDialogOpen] = useState(false);
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
+
+  const [limit] = useState<number>(10);
+  const [offset, setOffset] = useState<number>(0);
 
   const [dialogMode, setDialogMode] = useState<DialogModes>("create");
   const [selectedBookId, setSelectedBookId] = useState<string>("");
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [search, setSearch] = useState<string>(
     searchParams.get("search") ?? "",
   );
   const debounced = useDebounceCallback(setSearch, 500);
 
-  const selectedBook = books.find((book) => book.id === selectedBookId);
+  const [sortBy, setSortBy] = useState<SortByOptions>("createdAt");
+  const [order, setOrder] = useState<OrderOptions>("asc");
+
+  const selectedBook = bookPage.books?.find(
+    (book) => book.id === selectedBookId,
+  );
 
   const handleSubmit = (formData: FormData) => {
     if (dialogMode === "create") {
@@ -87,7 +100,31 @@ export default function BooksClient({
     } else {
       updateBook(selectedBookId, formData);
     }
+    setSelectedTagIds([]);
   };
+
+  const changeSortAndOrder = (nextSortBy: SortByOptions) => {
+    setOrder(order === "asc" ? "desc" : "asc");
+    setSortBy(nextSortBy ?? "createdAt");
+  };
+
+  const navigatePrev = () => {
+    setOffset(Math.max(0, offset - limit));
+  };
+
+  const navigateNext = () => {
+    setOffset(offset + limit);
+  };
+
+  useEffect(() => {
+    if (dialogMode === "edit" && selectedBook) {
+      setSelectedTagIds(selectedBook.tags?.map((t) => t.id) ?? []);
+      return;
+    }
+    if (dialogMode === "create") {
+      setSelectedTagIds([]);
+    }
+  }, [dialogMode, selectedBook]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -98,10 +135,13 @@ export default function BooksClient({
       params.delete("search");
     }
 
-    router.replace(`/?${params.toString()}`);
-  }, [search]);
+    if (sortBy) params.set("sortBy", sortBy);
+    if (order) params.set("order", order);
+    if (limit) params.set("limit", limit.toString());
+    params.set("offset", offset.toString());
 
-  console.log("authors", authors);
+    router.replace(`/?${params.toString()}`);
+  }, [search, sortBy, order, limit, offset, router, searchParams]);
 
   return (
     <>
@@ -117,12 +157,13 @@ export default function BooksClient({
               onClick={() => {
                 setSelectedBookId("");
                 setDialogMode("create");
+                setSelectedTagIds([]);
               }}
             >
               Create Book
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-sm">
+          <DialogContent className="sm:max-w-md">
             <form
               action={handleSubmit}
               onSubmit={() => setBookDialogOpen(false)}
@@ -164,6 +205,16 @@ export default function BooksClient({
                   </Select>
                 </Field>
 
+                <Field>
+                  <Label htmlFor="tags-1">Tags</Label>
+                  <TagsMultiCombobox
+                    tags={tags}
+                    value={selectedTagIds}
+                    onChange={setSelectedTagIds}
+                    placeholder="Select tags..."
+                  />
+                </Field>
+
                 <div className="flex gap-4">
                   <Field className="w-1/3">
                     <Label htmlFor="status-1">Status</Label>
@@ -190,10 +241,10 @@ export default function BooksClient({
                     <Label htmlFor="genre-1">Genre</Label>
                     <Select
                       name="genreId"
-                      defaultValue={selectedBook?.genreId || "Fiction"}
+                      defaultValue={selectedBook?.genreId ?? undefined}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Genre" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
@@ -311,22 +362,88 @@ export default function BooksClient({
             </form>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>Create Tag</Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Create Tag</DialogTitle>
+              <DialogDescription>
+                Fill in the details to create a new tag.
+              </DialogDescription>
+            </DialogHeader>
+            <form action={createTag} onSubmit={() => setTagDialogOpen(false)}>
+              <FieldGroup>
+                <Field>
+                  <Label htmlFor="name-1">Name</Label>
+                  <Input
+                    id="name-1"
+                    name="name"
+                    placeholder="Enter tag name"
+                    className="mb-2"
+                  />
+                </Field>
+              </FieldGroup>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button type="submit">Create Tag</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex ai-c jc-c gap-5">
+        <Button onClick={() => navigatePrev()} disabled={offset === 0}>
+          <ArrowLeft />
+        </Button>
+
+        <span>
+          {offset + 1} -{" "}
+          {offset + limit < bookPage.totalCount
+            ? offset + limit
+            : bookPage.totalCount}{" "}
+          / {bookPage.totalCount}
+        </span>
+
+        <Button
+          onClick={() => navigateNext()}
+          disabled={offset + limit >= bookPage.totalCount}
+        >
+          <ArrowRight />
+        </Button>
       </div>
 
       <Table className="my-10 mx-auto">
         <TableCaption>A list of your books</TableCaption>
         <TableHeader>
           <TableRow className="border-none">
-            <TableHead>Title</TableHead>
-            <TableHead>Author</TableHead>
+            <TableHead
+              className="hover:bg-accent hover:cursor-pointer"
+              onClick={() => changeSortAndOrder("title")}
+            >
+              Title
+            </TableHead>
+            <TableHead
+              className="hover:bg-accent hover:cursor-pointer"
+              onClick={() => changeSortAndOrder("author")}
+            >
+              Author
+            </TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Rating</TableHead>
             <TableHead>Genre</TableHead>
+            <TableHead>Tags</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {books.map((book: Book) => {
+          {bookPage.books?.map((book: Book) => {
             return (
               <TableRow key={book.id} className="p-2 h-10 rounded-md mb-3">
                 <TableCell className="max-w-20">{book.title}</TableCell>
@@ -339,6 +456,9 @@ export default function BooksClient({
                 </TableCell>
                 <TableCell>{book.rating}</TableCell>
                 <TableCell>{book.genre?.name}</TableCell>
+                <TableCell className="max-w-40 truncate">
+                  {book.tags?.map((t) => t.name).join(", ") || "—"}
+                </TableCell>
                 <TableCell>
                   <Button
                     variant="outline"

@@ -1,4 +1,3 @@
-import { getTodos } from "@/app/actions/todos";
 import React from "react";
 import TodosClient from "./todos-client";
 
@@ -7,8 +6,7 @@ interface TodoSectionProps {
   order?: string;
 }
 
-export default async function TodoSection({ sortBy, order }: TodoSectionProps) {
-  const todos = await getTodos(sortBy, order);
-
-  return <TodosClient todos={todos} sortBy={sortBy} order={order} />;
+/** Server shell — client fetches via React Query (see hooks/use-todos.ts). */
+export default function TodoSection({ sortBy, order }: TodoSectionProps) {
+  return <TodosClient sortBy={sortBy} order={order} />;
 }
